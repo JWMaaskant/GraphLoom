@@ -47,18 +47,18 @@ function Canvas() {
     [setEdges]
   );
 
+  const focusSignal = useRef(0);
+
   const handleResult = useCallback(({ command, output }) => {
     const rc       = ++resultCount.current;
     const resultId = `result-${rc}`;
     const prevResultId = rc > 1 ? `result-${rc - 1}` : null;
 
     setNodes(prev => {
-      // Find current terminal position
       const term = prev.find(n => n.id === TERMINAL_ID);
       const tx = term?.position.x ?? START_X + rc * STEP;
       const ty = term?.position.y ?? START_Y;
 
-      // Result node: placed where the terminal currently sits
       const resultNode = {
         id: resultId,
         type: 'result',
@@ -66,11 +66,12 @@ function Canvas() {
         data: { command, output },
       };
 
-      // Move the terminal one step to the right — same node, new position
       const movedTerminal = {
         ...term,
         position: { x: tx + STEP, y: ty },
         selected: true,
+        // Increment focusSignal so TerminalNode knows to grab focus
+        data: { ...term.data, focusSignal: ++focusSignal.current },
       };
 
       return [
@@ -81,8 +82,20 @@ function Canvas() {
     });
 
     setEdges(prev => {
-      const newEdges = [...prev,
-        // result → terminal
+      // Remove old result→terminal edge, keep everything else
+      const without = prev.filter(e => e.target !== TERMINAL_ID);
+
+      const newEdges = [
+        ...without,
+        // previous result → this result (chain)
+        ...(prevResultId ? [{
+          id: `e-${prevResultId}-${resultId}`,
+          source: prevResultId,
+          target: resultId,
+          animated: true,
+          style: { stroke: '#00ff88', strokeWidth: 2 },
+        }] : []),
+        // only the latest result → terminal
         {
           id: `e-${resultId}-terminal`,
           source: resultId,
@@ -91,16 +104,6 @@ function Canvas() {
           style: { stroke: '#00ff88', strokeWidth: 2 },
         },
       ];
-      // previous result → this result
-      if (prevResultId) {
-        newEdges.push({
-          id: `e-${prevResultId}-${resultId}`,
-          source: prevResultId,
-          target: resultId,
-          animated: true,
-          style: { stroke: '#00ff88', strokeWidth: 2 },
-        });
-      }
       return newEdges;
     });
 

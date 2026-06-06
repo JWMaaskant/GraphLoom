@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { useGraphSocket, initShell } from './useGraphSocket';
 
@@ -8,6 +8,7 @@ export default function TerminalNode({ id, data, selected }) {
   const [histIdx, setHistIdx] = useState(-1);
   const [running, setRunning] = useState(false);
   const [cwd, setCwd]         = useState('~');
+  const inputRef              = useRef(null);
 
   const { send } = useGraphSocket(id, (msg) => {
     if (msg.type === 'result') {
@@ -21,6 +22,13 @@ export default function TerminalNode({ id, data, selected }) {
   useEffect(() => {
     initShell(id);
   }, []);
+
+  // Focus input whenever focusSignal changes (after each command result)
+  useEffect(() => {
+    if (data.focusSignal) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [data.focusSignal]);
 
   const run = useCallback(() => {
     const cmd = input.trim();
@@ -84,6 +92,7 @@ export default function TerminalNode({ id, data, selected }) {
       <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ color: '#555', userSelect: 'none' }}>$</span>
         <input
+          ref={inputRef}
           autoFocus
           value={input}
           onChange={e => setInput(e.target.value)}

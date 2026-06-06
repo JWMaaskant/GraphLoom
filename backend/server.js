@@ -53,23 +53,6 @@ wss.on('connection', (ws) => {
         break;
       }
 
-      case 'transfer': {
-        console.log(`transfer: ${msg.oldNodeId} -> ${msg.newNodeId} sessions=[${[...sessions.keys()].join(',')}]`);
-        const session = sessions.get(msg.oldNodeId);
-        if (session) {
-          session.ws = ws;
-          session.nodeId = msg.newNodeId;  // keep nodeId current so flush sends to correct listener
-          sessions.set(msg.newNodeId, session);
-          sessions.delete(msg.oldNodeId);
-          nodeId = msg.newNodeId;
-          console.log(`transfer OK: sessions=[${[...sessions.keys()].join(',')}]`);
-        } else {
-          console.log(`transfer FAILED: session not found for ${msg.oldNodeId}`);
-        }
-        ws.send(JSON.stringify({ type: 'ready', nodeId }));
-        break;
-      }
-
       case 'run': {
         const { command, runId } = msg;
         // Use nodeId from message for robustness with shared socket

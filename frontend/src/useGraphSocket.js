@@ -2,10 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 
 const WS_URL = 'ws://localhost:3001';
 
-// A single shared WebSocket for the whole app.
-// Terminal nodes send/receive through this via their nodeId.
 let sharedWs = null;
-let listeners = new Map(); // nodeId -> callback
+const listeners = new Map(); // nodeId -> callback
 
 function getSocket() {
   if (sharedWs && sharedWs.readyState <= 1) return sharedWs;
@@ -19,7 +17,6 @@ function getSocket() {
   };
 
   sharedWs.onerror = (e) => console.error('GraphLoom WS error', e);
-
   return sharedWs;
 }
 
@@ -45,13 +42,6 @@ export function useGraphSocket(nodeId, onMessage) {
 export function initShell(nodeId) {
   const ws = getSocket();
   const doSend = () => ws.send(JSON.stringify({ type: 'init', nodeId }));
-  if (ws.readyState === WebSocket.OPEN) doSend();
-  else ws.addEventListener('open', doSend, { once: true });
-}
-
-export function transferShell(oldNodeId, newNodeId) {
-  const ws = getSocket();
-  const doSend = () => ws.send(JSON.stringify({ type: 'transfer', oldNodeId, newNodeId }));
   if (ws.readyState === WebSocket.OPEN) doSend();
   else ws.addEventListener('open', doSend, { once: true });
 }

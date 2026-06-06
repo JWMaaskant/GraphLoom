@@ -15,15 +15,14 @@ import '@xyflow/react/dist/style.css';
 import TerminalNode from './TerminalNode';
 import ResultNode   from './ResultNode';
 
-// Must be defined OUTSIDE the component so React Flow doesn't remount nodes on every render
 const nodeTypes = { terminal: TerminalNode, result: ResultNode };
 
-const NODE_WIDTH   = 340;
-const NODE_GAP     = 60;
-const STEP         = NODE_WIDTH + NODE_GAP;
-const START_X      = 80;
-const START_Y      = 300;
-const TERMINAL_ID  = 'terminal-1';
+const NODE_WIDTH  = 340;
+const NODE_GAP    = 60;
+const STEP        = NODE_WIDTH + NODE_GAP;
+const START_X     = 80;
+const START_Y     = 300;
+const TERMINAL_ID = 'terminal';
 
 const initialNodes = [
   {
@@ -40,7 +39,6 @@ function Canvas() {
   const { setCenter } = useReactFlow();
 
   const resultCount = useRef(0);
-  const terminalId  = useRef(TERMINAL_ID);
 
   const onConnect = useCallback(
     (params) => setEdges(eds => addEdge({
@@ -50,22 +48,17 @@ function Canvas() {
   );
 
   const handleResult = useCallback(({ command, output }) => {
-    resultCount.current += 1;
-    const rc         = resultCount.current;
-    const resultId   = `result-${rc}`;
-    const newTermId  = `terminal-${rc + 1}`;
-    const oldTermId  = terminalId.current;
-
-    let newTermX = START_X + (rc + 1) * STEP;
-    let newTermY = START_Y;
+    const rc       = ++resultCount.current;
+    const resultId = `result-${rc}`;
+    const prevResultId = rc > 1 ? `result-${rc - 1}` : null;
 
     setNodes(prev => {
-      const termNode = prev.find(n => n.id === oldTermId);
-      const tx = termNode?.position.x ?? START_X + rc * STEP;
-      const ty = termNode?.position.y ?? START_Y;
-      newTermX = tx + STEP;
-      newTermY = ty;
+      // Find current terminal position
+      const term = prev.find(n => n.id === TERMINAL_ID);
+      const tx = term?.position.x ?? START_X + rc * STEP;
+      const ty = term?.position.y ?? START_Y;
 
+      // Result node: placed where the terminal currently sits
       const resultNode = {
         id: resultId,
         type: 'result',
@@ -73,36 +66,36 @@ function Canvas() {
         data: { command, output },
       };
 
-      const newTermNode = {
-        id: newTermId,
-        type: 'terminal',
-        position: { x: newTermX, y: newTermY },
-        data: { previousTerminalId: oldTermId },
+      // Move the terminal one step to the right — same node, new position
+      const movedTerminal = {
+        ...term,
+        position: { x: tx + STEP, y: ty },
         selected: true,
       };
 
       return [
-        ...prev.filter(n => n.id !== oldTermId),
+        ...prev.filter(n => n.id !== TERMINAL_ID),
         resultNode,
-        newTermNode,
+        movedTerminal,
       ];
     });
 
     setEdges(prev => {
-      const newEdges = [
-        ...prev,
+      const newEdges = [...prev,
+        // result → terminal
         {
-          id: `e-${resultId}-${newTermId}`,
+          id: `e-${resultId}-terminal`,
           source: resultId,
-          target: newTermId,
+          target: TERMINAL_ID,
           animated: true,
           style: { stroke: '#00ff88', strokeWidth: 2 },
         },
       ];
-      if (rc > 1) {
+      // previous result → this result
+      if (prevResultId) {
         newEdges.push({
-          id: `e-result-${rc - 1}-${resultId}`,
-          source: `result-${rc - 1}`,
+          id: `e-${prevResultId}-${resultId}`,
+          source: prevResultId,
           target: resultId,
           animated: true,
           style: { stroke: '#00ff88', strokeWidth: 2 },
@@ -111,20 +104,18 @@ function Canvas() {
       return newEdges;
     });
 
-    terminalId.current = newTermId;
-
-    // Pan canvas to keep the new terminal centred in view
+    // Pan to keep terminal in view
     setTimeout(() => {
-      setCenter(
-        newTermX + NODE_WIDTH / 2,
-        newTermY + 40,
-        { zoom: 1, duration: 400 }
-      );
+      const newX = START_X + rc * STEP + NODE_WIDTH / 2;
+      const newY = START_Y + 40;
+      setCenter(newX, newY, { zoom: 1, duration: 400 });
     }, 50);
+
   }, [setNodes, setEdges, setCenter]);
 
+  // Inject callback — only the terminal node needs it
   const nodesWithHandlers = nodes.map(n =>
-    n.type === 'terminal'
+    n.id === TERMINAL_ID
       ? { ...n, data: { ...n.data, onResult: handleResult } }
       : n
   );
@@ -164,7 +155,6 @@ function Canvas() {
   );
 }
 
-// ReactFlowProvider must wrap the component that uses useReactFlow()
 export default function App() {
   return (
     <ReactFlowProvider>

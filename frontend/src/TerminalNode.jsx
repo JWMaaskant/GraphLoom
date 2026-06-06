@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { useGraphSocket, initShell, transferShell } from './useGraphSocket';
+import { useGraphSocket, initShell } from './useGraphSocket';
 
 export default function TerminalNode({ id, data, selected }) {
   const [input, setInput]     = useState('');
@@ -17,13 +17,9 @@ export default function TerminalNode({ id, data, selected }) {
     }
   });
 
-  // On mount: either init a fresh shell or transfer an existing one
+  // Init shell once on first mount — this node never remounts
   useEffect(() => {
-    if (data.previousTerminalId) {
-      transferShell(data.previousTerminalId, id);
-    } else {
-      initShell(id);
-    }
+    initShell(id);
   }, []);
 
   const run = useCallback(() => {
@@ -88,7 +84,7 @@ export default function TerminalNode({ id, data, selected }) {
       <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ color: '#555', userSelect: 'none' }}>$</span>
         <input
-          autoFocus={selected}
+          autoFocus
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={onKeyDown}
